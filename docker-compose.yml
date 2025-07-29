@@ -93,20 +93,6 @@ services:
       - private_backend_net
       - public_frontend_net
 
-  # Jenkins
-  jenkins:
-    image: jenkins/jenkins:lts
-    container_name: jenkins
-    user: root 
-    ports:
-      - "${JENKINS_PORT}:8080"
-      - "${JENKINS_AGENT_PORT}:50000"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - private_backend_net
-      - public_frontend_net
 
 
 volumes:
@@ -119,4 +105,3 @@ networks:
     driver: bridge
   public_frontend_net:
     driver: bridge
-

@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REPO_URL = 'https://github.com/kayoulou/Voting-app.git'
+        REPO_URL = 'https://github.com/kayoulou/Voting-app2.git'
         REPO_BRANCH = 'main'
         ENV_FILE = '.env'
     }
@@ -18,16 +18,16 @@ pipeline {
         stage('Build') {
             steps {
                 echo "===> Construction des images Docker"
-                sh 'docker compose --env-file ${ENV_FILE} build'
+                sh 'docker-compose --env-file ${ENV_FILE} build'
             }
         }
 
         stage('Deploy') {
             steps {
                 echo "===> Arrêt et suppression des anciens containers"
-                sh 'docker compose --env-file ${ENV_FILE} down -v'
+                sh 'docker-compose --env-file ${ENV_FILE} down -v'
                 echo "===> Déploiement des nouveaux containers"
-                sh 'docker compose --env-file ${ENV_FILE} up -d'
+                sh 'docker-compose --env-file ${ENV_FILE} up -d'
             }
         }
     }
@@ -35,7 +35,7 @@ pipeline {
     post {
         always {
             echo "===> État actuel des containers"
-            sh 'docker compose ps'
+            sh 'docker-compose ps'
         }
         success {
             echo "✅ Pipeline exécutée avec succès !"
