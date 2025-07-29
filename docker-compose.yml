@@ -1,0 +1,122 @@
+version: "3.8"
+
+services:
+  # Base de données PostgreSQL
+  db:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - private_backend_net
+
+  # Redis
+  redis:
+    image: redis:${REDIS_VERSION}
+    container_name: redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - private_backend_net
+
+  # Worker (C#)
+  worker:
+    build: ./worker
+    container_name: worker
+    environment:
+      PG_SERVER_CS: ${DB_HOST}
+      PG_USER_CS: ${POSTGRES_USER}
+      PG_PASSWORD_CS: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - private_backend_net
+
+  # Voting (Flask - app.py)
+  voting:
+    build: ./vote
+    container_name: voting
+    environment:
+      PORT_FLASK: "80"
+      OPTION_A: ${OPTION_A}
+      OPTION_B: ${OPTION_B}
+      REDIS_HOST: ${REDIS_HOST}
+    ports:
+      - "${VOTE_PORT}:80"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - private_backend_net
+      - public_frontend_net
+
+  # Result (Node.js - server.js)
+  result:
+    build: ./result
+    container_name: result
+    environment:
+      PORT_NODE: "4000"
+      PG_CONNECTION_STRING_NODE: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_HOST}/${POSTGRES_DB}
+      OPTION_A: ${OPTION_A}
+      OPTION_B: ${OPTION_B}
+      REDIS_HOST: ${REDIS_HOST}
+    ports:
+      - "${RESULT_PORT}:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - private_backend_net
+      - public_frontend_net
+
+  # Jenkins
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    user: root 
+    ports:
+      - "${JENKINS_PORT}:8080"
+      - "${JENKINS_AGENT_PORT}:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - private_backend_net
+      - public_frontend_net
+
+
+volumes:
+  pgdata:
+  jenkins_home:
+
+
+networks:
+  private_backend_net:
+    driver: bridge
+  public_frontend_net:
+    driver: bridge
+
